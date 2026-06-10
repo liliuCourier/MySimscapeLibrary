@@ -17,11 +17,22 @@ A custom Simscape library for two-phase pipe flow with enhanced friction factor 
 
 ## Installation
 
-Download the `.mltbx` file and double-click to install — that's it.
-The library will automatically appear in the Simulink Library Browser under "My Custom Simscape Library".
+Download the `.mltbx` file and double-click to install.
 
-To verify installation, run:
+### What happens during installation
+
+1. MATLAB extracts the toolbox to:
+   `%APPDATA%\MathWorks\MATLAB Add-Ons\Toolboxes\MyCustomSimscapeLibrary\`
+   (e.g., `C:\Users\<username>\AppData\Roaming\MathWorks\MATLAB Add-Ons\Toolboxes\MyCustomSimscapeLibrary\`)
+2. The path is automatically added to the MATLAB search path and saved via `pathdef.m` — no manual `addpath` needed
+3. `slblocks.m` is registered, so the library appears in the Simulink Library Browser under **"My Custom Simscape Library"**
+4. The installation persists across MATLAB restarts
+
+### Verify
+
+After installation, run in MATLAB:
 ```matlab
+which('slblocks')
 sscbuild('mylib_lib')
 ```
 
@@ -55,7 +66,23 @@ This library is derived from the MATLAB Simscape `pipe(2P)` block (Copyright 201
 ## 安装
 
 下载 `.mltbx` 文件，双击即可安装。
-库会自动出现在 Simulink Library Browser 中，名称为 "My Custom Simscape Library"。
+
+### 安装过程说明
+
+1. MATLAB 将工具箱解压到：
+   `%APPDATA%\MathWorks\MATLAB Add-Ons\Toolboxes\MyCustomSimscapeLibrary\`
+   （例如 `C:\Users\<用户名>\AppData\Roaming\MathWorks\MATLAB Add-Ons\Toolboxes\MyCustomSimscapeLibrary\`）
+2. 路径自动加入 MATLAB 搜索路径并通过 `pathdef.m` 保存——无需手动 `addpath`
+3. `slblocks.m` 被注册，库自动出现在 Simulink Library Browser 中，名称为 **"My Custom Simscape Library"**
+4. 重启 MATLAB 后仍然有效
+
+### 验证安装
+
+安装后在 MATLAB 中运行：
+```matlab
+which('slblocks')
+sscbuild('mylib_lib')
+```
 
 ## 许可证
 
