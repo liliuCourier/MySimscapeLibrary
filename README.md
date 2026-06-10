@@ -17,12 +17,13 @@ A custom Simscape library for two-phase pipe flow with enhanced friction factor 
 
 ## Installation
 
-1. Download the `.mltbx` file
-2. Double-click or run in MATLAB:
-   ```matlab
-   matlab.addons.install('MyCustomSimscapeLibrary.mltbx')
-   ```
-3. The library appears in the Simulink Library Browser under "My Custom Simscape Library"
+Download the `.mltbx` file and double-click to install — that's it.
+The library will automatically appear in the Simulink Library Browser under "My Custom Simscape Library".
+
+To verify installation, run:
+```matlab
+sscbuild('mylib_lib')
+```
 
 ## License
 
@@ -53,12 +54,8 @@ This library is derived from the MATLAB Simscape `pipe(2P)` block (Copyright 201
 
 ## 安装
 
-1. 下载 `.mltbx` 文件
-2. 双击或在 MATLAB 中运行：
-   ```matlab
-   matlab.addons.install('MyCustomSimscapeLibrary.mltbx')
-   ```
-3. 库自动出现在 Simulink Library Browser 中，名称为 "My Custom Simscape Library"
+下载 `.mltbx` 文件，双击即可安装。
+库会自动出现在 Simulink Library Browser 中，名称为 "My Custom Simscape Library"。
 
 ## 许可证
 
