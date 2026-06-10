@@ -10,6 +10,24 @@ A custom Simscape library for two-phase pipe flow with enhanced friction factor 
 - Laminar-turbulent transition with smooth blending
 - Optional fluid inertia effects
 
+## Two-Phase Pressure Drop Model
+
+The `pipe_individual` block uses two distinct approaches depending on the selected `TP_fric_model`:
+
+### Homogeneous Model (Cicchitti / Dukler)
+
+Treats the two-phase mixture as a single-phase fluid with averaged properties. The same single-phase friction factor formula handles all conditions — pure liquid, mixture, and pure vapor — using a homogeneous viscosity weighted by vapor quality. The two-phase multiplier calculations and saturation Reynolds numbers are computed but **not used** in this mode.
+
+### Heterogeneous Model (Müller-Steinhagen & Heck / Xu-Fang)
+
+Uses a two-phase multiplier approach. The logic separates single-phase and two-phase regions:
+
+- **Single-phase region** (pure liquid or pure vapor): uses `friction_A` directly, computed from bulk fluid properties (`mu_I`, `v_I`) — correct for single-phase conditions.
+- **Two-phase region** (liquid-vapor mixture): uses `friction_A_TP`, computed from saturated liquid/vapor properties and a two-phase multiplier.
+- **Transition region**: a smooth blend (`simscape.function.blend`) transitions between `friction_A` and `friction_A_TP` using vapor void fraction and normalized internal energy.
+
+> **Note:** Saturation-based Reynolds numbers (`Re_vap`, `Re_liq`) in heterogeneous mode are only valid for the two-phase multiplier. In single-phase conditions, the blend automatically selects bulk-property-based `friction_A`.
+
 ## Requirements
 
 - MATLAB R2023b or later
@@ -57,6 +75,24 @@ This library is derived from the MATLAB Simscape `pipe(2P)` block (Copyright 201
   - **4 种两相压降模型**：均相（Cicchitti、Dukler）和非均相（Müller-Steinhagen & Heck、Xu-Fang）
 - 层流-湍流过渡区平滑切换
 - 可选流体惯性效应
+
+## 两相压降模型说明
+
+`pipe_individual` 根据 `TP_fric_model` 采用两种不同的两相压降计算方法：
+
+### 均相模型（Cicchitti / Dukler）
+
+将两相混合物视为具有平均物性的单相流体，通过按干度加权的均相粘度，用统一的摩擦因子公式处理纯液、混合区和纯气全部工况。两相倍增因子及饱和雷诺数在此模式下**虽被计算但不参与最终压降结果**。
+
+### 非均相模型（Müller-Steinhagen & Heck / Xu-Fang）
+
+采用两相倍增因子方法，区分单相区和两相区：
+
+- **单相区**（纯液或纯气）：直接使用 `friction_A`，基于 bulk 物性计算，结果正确
+- **两相区**（气液混合物）：使用 `friction_A_TP`，基于饱和物性和两相倍增因子计算
+- **过渡区**：以截面含气率和归一化内能为参数，在 `friction_A` 和 `friction_A_TP` 之间平滑过渡
+
+> **注意：** 非均相模型中的饱和雷诺数仅用于两相倍增因子计算。单相区时 blend 自动选择基于 bulk 物性的 `friction_A`。
 
 ## 系统要求
 
