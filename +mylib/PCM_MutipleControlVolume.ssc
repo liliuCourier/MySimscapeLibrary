@@ -1,0 +1,153 @@
+component PCM_MutipleControlVolume
+% Try to use matrix to cal 
+nodes
+    O = foundation.thermal.thermal;     % East port
+end
+
+parameters
+    n = {20,'1'};                       % Numbers of control volume
+    
+    cp_solid  = {2, 'kJ/(kg*K)'};              % Specific heat capacity (solid)
+    cp_liquid = {2, 'kJ/(kg*K)'};              % Specific heat capacity (liquid)
+    Density_solid  = {850, 'kg/m^3'};          % Solid Density
+    Density_liquid = {850, 'kg/m^3'};          % Liquid Density
+    u_PCM = {2e-2, 'Pa*s'}                     % Dynamic viscosity
+    k_solid =  {0.2e-3, 'kW/(m*K)'};           % Thermal conductivity (solid)
+    k_liquid = {0.2e-3, 'kW/(m*K)'};           % Thermal conductivity (liquid, without convection)
+    beta = {1e-4, '1/K'};                      % Thermal expansion coefficient
+
+    k_metal = {400e-3, 'kW/(m*K)'};            % Thermal conductivity (metal)
+    g = {9.81, 'N/kg'};                        % gravity acc
+
+    % Cylinder Geometry Parameters
+    r_inner_PCM = {0.05, 'm'};                  % Inner radius
+    r_outer_PCM = {0.1, 'm'};                   % Outer radius
+    L = {0.15, 'm'};                                     % Length of cylinder
+    w = {3e-3, 'm'};                                    % Width of metal layer
+
+    h_heating = {zeros(1,101)+20,'kJ/kg'};       % lookUpTable h_heating
+    h_cooling = {zeros(1,101)+20,'kJ/kg'};       % lookUpTable h_cooling
+    T_ref = {zeros(1,101),'K'};                             % lookUpTable T_ref
+    T_pc_start = {0,'K'};                                   % T_pc_start
+    T_pc_end = {0,'K'};                                     % T_pc_start
+    h_pc_start = {20,'kJ/kg'};                      % h_pc_start
+    h_pc_end = {200,'kJ/kg'};                       % h_pc_end
+end
+
+parameters (ExternalAccess = observe)
+    h_initial  = {zeros(1,n)+35,'kJ/kg'};           % initial h
+end
+
+inputs
+    heating_mod = {1, '1'};             % heating_signal
+    T_last_step = {zeros(1,n),'K'};              % Past step T
+    h_last_step = {zeros(1,n),'kJ/kg'};          % Past step h
+end
+
+outputs
+    %h1_output = {zeros(1,n),'kW/kg'};
+    h_output = {zeros(1,n),'kJ/kg'};
+    T_output = {zeros(1,n),'K'};
+   
+end
+
+parameters(Access = private)
+    %T_pc_start1 = {zeros(1,n)+T_pc_start,'K'};               %  T_pc_start_matrix
+    A1 = {diag(ones(1,n),0),         '1'}
+    A2 = {diag(ones(1,n-1),1),       '1'}
+    A3 = {diag(ones(1,n-1),-1),      '1'}
+end
+
+
+variables(Access = protected)
+    h_PCM = {value = h_initial , priority = priority.high};        %  h
+end
+
+% function setup
+%     h_PCM = h_initial;
+% end
+
+variables(ExternalAccess = observe)
+    %T_PCM = {zeros(1,n),'K'}
+    %Lf = {zeros(1,n), '1'}
+    Q     = {0, 'W'};
+end
+
+intermediates
+    cal = zeros(n,1) + 1; 
+    T_pc_start1 = ones(1,n)*T_pc_start;
+    dr = (r_outer_PCM - r_inner_PCM) / n;   % dr
+    r_inner = r_inner_PCM : dr : r_outer_PCM - dr;  % inner radial of every FV
+    r_outer = r_inner_PCM + dr : dr : r_outer_PCM;  % outer radial of every FV
+    r_PCM = ( r_inner + r_outer ) / 2;              % central radial of every FV
+    
+end
+   
+intermediates
+     h_ref = .if heating_mod*ones(1,n) > zeros(1,n), tablelookup(T_ref,h_heating,T_last_step);
+     .else tablelookup(T_ref,h_cooling,T_last_step);
+     .end
+
+     k_line = .if heating_mod*ones(1,n) > zeros(1,n), (h_pc_end - h_last_step)./(h_pc_end - h_ref);
+     .else (h_pc_start - h_last_step)./(h_pc_start - h_ref);
+     .end
+     
+     b = .if heating_mod*ones(1,n) > zeros(1,n), (1-k_line) .* h_pc_end;
+     .else (1-k_line) .* h_pc_start;
+     .end
+
+     h_ref_new = (h_PCM - b)./k_line;
+
+    T_PCM = .if  h_PCM < h_pc_start, T_pc_start - (h_pc_start - h_PCM)/cp_solid;
+     .elseif h_PCM > h_pc_end, T_pc_end + (h_PCM - h_pc_end)/cp_liquid;
+     .elseif heating_mod*ones(1,n) > zeros(1,n), tablelookup(h_heating,T_ref,h_ref_new);
+     .else tablelookup(h_cooling,T_ref,h_ref_new);
+     .end
+
+    Lf = .if h_PCM <  h_pc_start, 0;
+     .elseif h_PCM >  h_pc_end, 1;
+     .else (h_PCM - h_pc_start)/(h_pc_end - h_pc_start);
+     .end
+end
+
+intermediates
+    Distance =  (Lf * cal) *dr ; 
+    dT = O.T - T_PCM(1);
+
+    Pr_PCM = cp_liquid * u_PCM / k_liquid;
+    Gr_PCM = (g * beta * dT * Distance^3 * Density_solid^2) / u_PCM ^ 2;
+    Ra_PCM = Gr_PCM * Pr_PCM ;
+    Nu_PCM = if Ra_PCM <1e2, 1 else  0.353 * Ra_PCM^0.226 end;
+    k_outer_eff = if heating_mod == 1,  (1-Lf) * k_solid + Lf * k_liquid * Nu_PCM else (1-Lf) * k_solid + Lf * k_liquid end;
+    k_inner_eff = if heating_mod == 1,  (1-Lf) * k_solid + Lf * k_liquid * Nu_PCM else (1-Lf) * k_solid + Lf * k_liquid end;
+
+    k_harmonic = 2./(1./k_outer_eff(1:n-1) + 1./k_inner_eff(2:n)  );
+    k_harmonic_PCM_metal = k_outer_eff(n)%(0.5*dr + w)/(w/k_metal + 0.5*dr/k_outer_eff(n));
+
+    k_outer_harmonic = [k_harmonic  k_harmonic_PCM_metal];
+    k_inner_harmonic = [k_inner_eff(1)  k_harmonic];
+
+    a_inner = [0 k_inner_harmonic(2:n).*r_inner(2:n)/dr] ;
+    a_outer = [k_outer_harmonic(1:n-1).*r_outer(1:n-1)/dr  k_harmonic_PCM_metal * r_outer(n)/(0.5*dr + w)];
+    B = [zeros(1,n-1) 1] * k_harmonic_PCM_metal * r_outer(n)/(0.5*dr + w);
+    %A = diag(- a_inner - a_outer,0) + diag(a_outer(1:n-1),1) + diag(a_inner(2:n),-1);
+    A = ones(n,1)*(- a_inner - a_outer).*A1 + ones(n,1)*([0 a_outer(1:n-1)]).* A2   + ones(n,1)*([a_inner(2:n) 0]).* A3  ;
+    %A = zeros(n,n);
+    a0 = Density_solid * dr * r_PCM;
+end
+
+branches
+    Q: O.Q ->* ;
+end
+
+equations
+    a0.* h_PCM.der == T_PCM * A' + B*O.T ;
+    Q == ( O.T- T_PCM(1,n)  ) * 2 * pi * (r_outer(n)) * L * k_harmonic_PCM_metal / ( 0.5*dr + 0.5*w );
+   
+    %h1_output == h_PCM.der;
+    h_output == h_PCM;
+    T_output == T_PCM;
+end
+
+end
+
